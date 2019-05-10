@@ -4,31 +4,7 @@ const { spawn } = require('child_process')
 const readline = require('readline')
 const os = require('os')
 
-const FFMPEG_BIN_PATH = process.env.FFMPEG_BIN_PATH || 'ffmpeg'
-
-/*
-	Transcodes a media stream from one format to another.
-	 @source A file or a readable stream.
-
-	Events:
-	 'metadata' emitted when media metadata is available.
-	  @metadata (callback parameter) The media mediadata.
-
-	 'progress' emitted when transcoding has progressed.
-	  @progress (callback parameter) The status of the transcoding process.
-
-	 'finish' emitted when transcoding has completed.
-
-	 'error' emmited if an error occurs.
-	  @error (callback parameter) The error that occured.
-*/
-
-/**
- * @type string | Readable
- * @returns {Transcoder}
- * @constructor
- */
-function Transcoder(source) {
+function Transcoder({ source, ffmpegPath }) {
   if (!(this instanceof Transcoder)) {
     return new Transcoder(source)
   }
@@ -36,6 +12,7 @@ function Transcoder(source) {
   EventEmitter.call(this)
 
   this.source = source
+  this.ffmpegPath = ffmpegPath || process.env.FFMPEG_BIN_PATH || 'ffmpeg'
 
   this.args = {}
   this.lastErrorLine = null
@@ -252,7 +229,7 @@ function Transcoder(source) {
 
     //console.log('Spawning ffmpeg ' + a.join(' '));
 
-    const child = spawn(FFMPEG_BIN_PATH, a, {
+    const child = spawn(this.ffmpegPath, a, {
       cwd: os.tmpdir(),
     })
     this._parseMetadata(child)

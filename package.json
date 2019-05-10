@@ -6,8 +6,7 @@
   "devDependencies": {
     "husky": "^2.2.0",
     "lint-staged": "^8.1.6",
-    "prettier": "^1.17.0",
-    "typescript": "^3.4.5"
+    "prettier": "^1.17.0"
   },
   "engines": {
     "node": ">=6.17.1"
@@ -31,9 +30,10 @@
       "git add"
     ]
   },
-  "main": "dist/index.js",
+  "main": "src/index.js",
   "repository": {
     "type": "github",
     "url": "https://github.com/BeeeQueue/stream-transcoder.js"
-  }
+  },
+  "types": "index.d.ts"
 }

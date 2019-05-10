@@ -1,9 +1,19 @@
-const { EventEmitter } = require('events')
-const { spawn } = require('child_process')
-const { createInterface } = require('readline')
-const { tmpdir } = require('os')
+import { EventEmitter } from 'events'
+import { ChildProcessWithoutNullStreams, spawn } from 'child_process'
+import { createInterface } from 'readline'
+import { tmpdir } from 'os'
+import { Readable, Writable } from 'stream'
+import { MetadataEventData, ProgressEventData } from '@/types'
 
 const FFMPEG_BIN_PATH = process.env.FFMPEG_BIN_PATH || 'ffmpeg'
+
+interface Filters {
+  [key: string]: {
+    match: RegExp
+    idx?: number
+    transform?: (result: string) => any
+  }
+}
 
 /*
 	Transcodes a media stream from one format to another.
@@ -22,25 +32,30 @@ const FFMPEG_BIN_PATH = process.env.FFMPEG_BIN_PATH || 'ffmpeg'
 	  @error (callback parameter) The error that occured.
 */
 
-class Transcoder extends EventEmitter {
-  source
-  args = {}
-  lastErrorLine = null
+export default class Transcoder extends EventEmitter {
+  stdin = new Writable()
 
-  constructor(source) {
+  source: string | Readable
+  args: { [key: string]: string | string[] } = {}
+  lastErrorLine: string | null = null
+
+  constructor(source: string | Readable) {
     super()
 
     this.source = source
   }
 
   /** Spawns child and sets up piping */
-  _exec(a) {
-    if ('string' == typeof this.source) a = ['-i', this.source].concat(a)
-    else a = ['-i', '-'].concat(a)
+  _exec(args: string[]) {
+    if ('string' == typeof this.source) {
+      args = ['-i', this.source].concat(args)
+    } else {
+      args = ['-i', '-'].concat(args)
+    }
 
-    //console.log('Spawning ffmpeg ' + a.join(' '));
+    console.log('Spawning ffmpeg ' + args.join(' '))
 
-    const child = spawn(FFMPEG_BIN_PATH, a, {
+    const child = spawn(FFMPEG_BIN_PATH, args, {
       cwd: tmpdir(),
     })
 
@@ -66,14 +81,14 @@ class Transcoder extends EventEmitter {
 
   /** Compile arguments for FFmpeg */
   _compileArguments() {
-    let a = []
-    for (let key in this.args) a = a.concat(this.args[key])
-    return a
+    let args: string[] = []
+    for (let key in this.args) args = args.concat(this.args[key])
+    return args
   }
 
-  _parseMetadata(child) {
+  _parseMetadata(child: ChildProcessWithoutNullStreams) {
     /** Converts a FFmpeg time format to milliseconds */
-    const _parseDuration = duration => {
+    const _parseDuration = (duration: string) => {
       const d = duration.split(/[:.]/)
       return (
         parseInt(d[0]) * 60 * 60 * 1000 +
@@ -83,8 +98,7 @@ class Transcoder extends EventEmitter {
       )
     }
 
-    /* Filters for parsing metadata */
-    const metadataFilters = {
+    const metadataFilters: Filters = {
       type: {
         match: /Stream #[0-9]+:[0-9]+.*?: (\w+):/i,
         transform: r => {
@@ -142,7 +156,7 @@ class Transcoder extends EventEmitter {
     }
 
     /* Filters for parsing progress */
-    const progressFilters = {
+    const progressFilters: Filters = {
       frame: {
         match: /frame= .?([\d]+)/i,
         idx: 1,
@@ -182,20 +196,30 @@ class Transcoder extends EventEmitter {
     }
 
     /** Applies a set of filters to some data and returns the result */
-    const _applyFilters = (data, filters) => {
-      const ret = {}
+    const _applyFilters = (data: string, filters: Filters) => {
+      const ret: Transcoder['args'] = {}
+
       for (let key in filters) {
         const filter = filters[key]
-        let r = filter.match.exec(data) || []
-        if (filter.idx) r = r[filter.idx]
-        const v = filter.transform ? filter.transform(r) : r
-        if (v) ret[key] = v
+        const match: RegExpMatchArray = filter.match.exec(data) || []
+        let result: string | null = null
+
+        if (filter.idx) {
+          result = match[filter.idx]
+        }
+
+        const v = filter.transform ? filter.transform(result as any) : result
+
+        if (v) {
+          ret[key] = v
+        }
       }
+
       return ret
     }
 
-    const metadata = { input: {}, output: {} }
-    let current = null
+    const metadata: MetadataEventData = { input: {}, output: {} } as any
+    let current: any
 
     const metadataLines = createInterface({
       input: child.stderr,
@@ -220,17 +244,17 @@ class Transcoder extends EventEmitter {
           if (line.length > 0) this.lastErrorLine = line
 
           if (/^input/i.test(line)) {
-            current = metadata.input = { streams: [] }
+            current = metadata.input = { streams: [] } as any
           } else if (/^output/i.test(line)) {
             current = metadata.output = { streams: [] }
           } else if (/^Metadata:$/i.test(line)) {
-            if (current.streams.length) {
+            if (current.streams && current.streams.length) {
               current.streams[current.streams.length - 1].metadata = {}
             } else {
-              current.metadata = {}
+              current.metadata = {} as any
             }
           } else if (/^duration/i.test(line)) {
-            const d = /duration: (\d+:\d+:\d+.\d+)/i.exec(line)
+            const d = /duration: (\d+:\d+:\d+.\d+)/i.exec(line)!
             current.duration = _parseDuration(d[1])
             current.synched = /start: 0.000000/.exec(line) != null
           } else if (/^stream mapping/i.test(line)) {
@@ -261,9 +285,15 @@ class Transcoder extends EventEmitter {
         /* Track progress */
         if (/^(frame|size)=/i.test(line)) {
           if (!ended) _endParse()
-          const progress = _applyFilters(line, progressFilters)
-          if (metadata.input.duration)
+          const progress: ProgressEventData = _applyFilters(
+            line,
+            progressFilters,
+          ) as any
+
+          if (metadata.input.duration) {
             progress.progress = progress.time / metadata.input.duration
+          }
+
           this.emit('progress', progress)
         }
       } catch (e) {
@@ -277,8 +307,8 @@ class Transcoder extends EventEmitter {
    *
    * @param bitrate The bitrate of the encoded video. Both `1280000` or `128 kbit` can be passed.
    */
-  videoBitrate(bitrate) {
-    this.args['b'] = ['-b:v', bitrate]
+  videoBitrate(bitrate: number) {
+    this.args['b'] = ['-b:v', bitrate.toString()]
     return this
   }
 
@@ -290,7 +320,7 @@ class Transcoder extends EventEmitter {
    *
    * @param codec Name of the video codec. As an example `h264`.
    */
-  videoCodec(codec) {
+  videoCodec(codec: string) {
     this.args['vcodec'] = ['-vcodec', codec]
     return this
   }
@@ -300,8 +330,8 @@ class Transcoder extends EventEmitter {
    *
    * @param fps Frames per second.
    */
-  fps(fps) {
-    this.args['r'] = ['-r', fps]
+  fps(fps: number) {
+    this.args['r'] = ['-r', fps.toString()]
     return this
   }
 
@@ -313,10 +343,13 @@ class Transcoder extends EventEmitter {
    *
    * @param format Output format.
    */
-  format(format) {
+  format(format: string) {
     this.args['format'] = ['-f', format]
-    if (format.toLowerCase() === 'mp4')
+
+    if (format.toLowerCase() === 'mp4') {
       this.args['movflags'] = ['-movflags', 'frag_keyframe+faststart']
+    }
+
     return this
   }
 
@@ -327,7 +360,7 @@ class Transcoder extends EventEmitter {
    * @param width Maximum width of video.
    * @param height Miximum height of video.
    */
-  maxSize(width, height, alwaysScale) {
+  maxSize(width: number, height: number, alwaysScale?: boolean) {
     if (alwaysScale === undefined) alwaysScale = true
 
     let fltWdth =
@@ -352,7 +385,7 @@ class Transcoder extends EventEmitter {
    * @param width Minimum width of video.
    * @param height Minimum height of video.
    */
-  minSize(width, height, alwaysScale) {
+  minSize(width: number, height: number, alwaysScale?: boolean) {
     if (alwaysScale === undefined) alwaysScale = true
 
     let fltWdth =
@@ -377,7 +410,7 @@ class Transcoder extends EventEmitter {
    * @param width Minimum width of video.
    * @param height Minimum height of video.
    */
-  size(width, height) {
+  size(width: number, height: number) {
     this.args['s'] = ['-s', width + 'x' + height]
     return this
   }
@@ -387,8 +420,8 @@ class Transcoder extends EventEmitter {
    *
    * @param passes The number of encoder passes.
    */
-  passes(passes) {
-    this.args['pass'] = ['-pass', passes]
+  passes(passes: number) {
+    this.args['pass'] = ['-pass', passes.toString()]
     return this
   }
 
@@ -397,8 +430,8 @@ class Transcoder extends EventEmitter {
    *
    * @param ratio The desired aspect ratio. As an example `1.7777777`.
    */
-  aspectRatio(ratio) {
-    this.args['aspect'] = ['-aspect', ratio]
+  aspectRatio(ratio: number) {
+    this.args['aspect'] = ['-aspect', ratio.toString()]
     return this
   }
 
@@ -410,7 +443,7 @@ class Transcoder extends EventEmitter {
    *
    * @param codec Name of the audio codec. As an example `mp3` or `aac`.
    */
-  audioCodec(codec) {
+  audioCodec(codec: string) {
     this.args['acodec'] = ['-acodec', codec]
     return this
   }
@@ -420,8 +453,8 @@ class Transcoder extends EventEmitter {
    *
    * @param rate Audio sample rate. As an example `44100`.
    */
-  sampleRate(rate) {
-    this.args['ar'] = ['-ar', rate]
+  sampleRate(rate: number) {
+    this.args['ar'] = ['-ar', rate.toString()]
     return this
   }
 
@@ -430,8 +463,8 @@ class Transcoder extends EventEmitter {
    *
    * @param channels Number of audio channels.
    */
-  channels(channels) {
-    this.args['ac'] = ['-ac', channels]
+  channels(channels: number) {
+    this.args['ac'] = ['-ac', channels.toString()]
     return this
   }
 
@@ -440,8 +473,8 @@ class Transcoder extends EventEmitter {
    *
    * @param bitrate The audio bitrate.
    */
-  audioBitrate(bitrate) {
-    this.args['ab'] = ['-ab', bitrate]
+  audioBitrate(bitrate: number) {
+    this.args['ab'] = ['-ab', bitrate.toString()]
     return this
   }
 
@@ -450,7 +483,7 @@ class Transcoder extends EventEmitter {
    *
    * @param ms Time of frame in milliseconds.
    */
-  captureFrame(ms) {
+  captureFrame(ms: number) {
     const secs = ms / 1000
 
     let hours = Math.floor(secs / (60 * 60))
@@ -494,7 +527,7 @@ class Transcoder extends EventEmitter {
    * @param key The key for the parameter.
    * @param value The value for the parameter.
    */
-  custom(key, value) {
+  custom(key: string, value?: string) {
     const args = ['-' + key]
 
     if (value !== undefined) {
@@ -519,7 +552,8 @@ class Transcoder extends EventEmitter {
   stream() {
     const a = this._compileArguments()
     a.push('pipe:1')
-    return (this.stream = this._exec(a).stdout)
+
+    return this._exec(a).stdout
   }
 
   /**
@@ -527,12 +561,11 @@ class Transcoder extends EventEmitter {
    *
    * @param filePath Path of filename.
    */
-  writeToFile(filePath) {
+  writeToFile(filePath: string) {
     let a = this._compileArguments()
     a = a.concat('-y', filePath)
+
     this._exec(a)
     return this
   }
 }
-
-module.exports = Transcoder

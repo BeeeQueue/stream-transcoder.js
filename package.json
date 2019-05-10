@@ -11,6 +11,12 @@
   "engines": {
     "node": ">=6.17.1"
   },
+  "files": [
+    "package.json",
+    "README.md",
+    "index.d.ts",
+    "src/*"
+  ],
   "husky": {
     "hooks": {
       "pre-commit": "lint-staged"

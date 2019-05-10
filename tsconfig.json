@@ -16,7 +16,8 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "lib": ["es5", "es2015", "es2016", "es2017", "esnext"]
+    "lib": ["es5", "es2015", "es2016", "es2017", "esnext"],
+    "outDir": "dist"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]

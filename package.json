@@ -13,6 +13,11 @@
   "engines": {
     "node": ">=6.17.1"
   },
+  "files": [
+    "package.json",
+    "README.md",
+    "dist/*"
+  ],
   "husky": {
     "hooks": {
       "pre-commit": "lint-staged"
@@ -32,9 +37,14 @@
       "git add"
     ]
   },
-  "main": "src/index.ts",
+  "main": "dist/index.ts",
   "repository": {
     "type": "github",
     "url": "https://github.com/BeeeQueue/stream-transcoder.js"
-  }
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepack": "yarn build"
+  },
+  "types": "dist/index.d.ts"
 }

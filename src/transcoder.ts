@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events'
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process'
-import { createInterface } from 'readline'
-import { tmpdir } from 'os'
+import readline from 'readline'
+import os from 'os'
 import { Readable, Writable } from 'stream'
 import { MetadataEventData, ProgressEventData } from '@/types'
 
@@ -53,7 +53,7 @@ export default class Transcoder extends EventEmitter {
 
   /** Spawns child and sets up piping */
   _exec(args: string[]) {
-    if ('string' == typeof this.source) {
+    if (typeof this.source === 'string') {
       args = ['-i', this.source].concat(args)
     } else {
       args = ['-i', '-'].concat(args)
@@ -62,7 +62,7 @@ export default class Transcoder extends EventEmitter {
     console.log('Spawning ffmpeg ' + args.join(' '))
 
     const child = spawn(this.ffmpegPath, args, {
-      cwd: tmpdir(),
+      cwd: os.tmpdir(),
     })
 
     this._parseMetadata(child)
@@ -76,11 +76,14 @@ export default class Transcoder extends EventEmitter {
     })
 
     child.on('exit', code => {
-      if (!code) this.emit('finish')
-      else this.emit('error', new Error('FFmpeg error: ' + this.lastErrorLine))
+      if (!code) {
+        this.emit('finish')
+      } else {
+        this.emit('error', new Error('FFmpeg error: ' + this.lastErrorLine))
+      }
     })
 
-    if ('object' == typeof this.source) this.source.pipe(child.stdin)
+    if (typeof this.source === 'object') this.source.pipe(child.stdin)
 
     return child
   }
@@ -227,7 +230,7 @@ export default class Transcoder extends EventEmitter {
     const metadata: MetadataEventData = { input: {}, output: {} } as any
     let current: any
 
-    const metadataLines = createInterface({
+    const metadataLines = readline.createInterface({
       input: child.stderr,
       output: process.stdout,
       terminal: false,
@@ -575,3 +578,10 @@ export default class Transcoder extends EventEmitter {
     return this
   }
 }
+
+/*
+  on(type: 'metadata', cb: (data: MetadataEventData) => void): this
+  on(type: 'progress', cb: (data: ProgressEventData) => void): this
+  on(type: 'finish', cb: () => void): this
+  on(type: 'error', cb: (error: Error) => void): this
+ */

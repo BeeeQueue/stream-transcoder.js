@@ -37,7 +37,7 @@
       "git add"
     ]
   },
-  "main": "dist/index.ts",
+  "main": "dist/index.js",
   "repository": {
     "type": "github",
     "url": "https://github.com/BeeeQueue/stream-transcoder.js"

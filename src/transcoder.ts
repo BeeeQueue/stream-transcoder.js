@@ -5,14 +5,17 @@ import { tmpdir } from 'os'
 import { Readable, Writable } from 'stream'
 import { MetadataEventData, ProgressEventData } from '@/types'
 
-const FFMPEG_BIN_PATH = process.env.FFMPEG_BIN_PATH || 'ffmpeg'
-
 interface Filters {
   [key: string]: {
     match: RegExp
     idx?: number
     transform?: (result: string) => any
   }
+}
+
+interface Constructor {
+  source: string | Readable
+  ffmpegPath?: string
 }
 
 /*
@@ -36,13 +39,16 @@ export default class Transcoder extends EventEmitter {
   stdin = new Writable()
 
   source: string | Readable
+  ffmpegPath: string
+
   args: { [key: string]: string | string[] } = {}
   lastErrorLine: string | null = null
 
-  constructor(source: string | Readable) {
+  constructor({ source, ffmpegPath }: Constructor) {
     super()
 
     this.source = source
+    this.ffmpegPath = ffmpegPath || process.env.FFMPEG_BIN_PATH || 'ffmpeg'
   }
 
   /** Spawns child and sets up piping */
@@ -55,7 +61,7 @@ export default class Transcoder extends EventEmitter {
 
     console.log('Spawning ffmpeg ' + args.join(' '))
 
-    const child = spawn(FFMPEG_BIN_PATH, args, {
+    const child = spawn(this.ffmpegPath, args, {
       cwd: tmpdir(),
     })
 

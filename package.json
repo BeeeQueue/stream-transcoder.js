@@ -2,7 +2,10 @@
   "name": "stream-transcoder-2",
   "description": "FFmpeg based media transcoder that supports streams.",
   "version": "1.0.0-beta.0",
-  "author": "Kristian Trenskow <trenskow@me.com>",
+  "contributors": [
+    "Kristian Trenskow <trenskow@me.com>",
+    "BeeeQueue <adam.lj.haglund@gmail.com>"
+  ],
   "devDependencies": {
     "husky": "^2.2.0",
     "lint-staged": "^8.1.6",

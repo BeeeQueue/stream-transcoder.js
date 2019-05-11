@@ -67,17 +67,11 @@ In the above example the video is transcoded as it is being uploaded, and then p
 
 This class transcodes from one media format to another. It supports both files and streams as input and/or output. Some formats are not suited for streaming, in which case the `Transcoder` will emit an `error`, but most formats are.
 
-### new Transcoder(stream)
+### new Transcoder(options)
 
-  * `stream` Object - A readable stream.
-  
-Prepares a new Transcoder with a stream as its input.
-
-### new Transcoder(file)
-
-  * `file` String - The path of the file to be transcoded.
-
-Prepares a new Transcoder with a file as its input.
+  * `options` Object - A readable stream.
+  * `options.source` Stream | string - Source to parse, either a readable stream or a file path.  
+  * `options.ffmpegPath` [string] - Optional path to ffmpeg executable. If this is null it will be set to `process.env.FFMPEG_PATH || 'ffmpeg''`
 
 ### Event: 'metadata'
 

@@ -1,75 +1,77 @@
-#stream-transcoder.js
-[![npm version](https://badge.fury.io/js/stream-transcoder.svg)](https://www.npmjs.com/package/stream-transcoder)
+#stream-transcoder-2
+[![npm version](https://badge.fury.io/js/stream-transcoder-2.svg)](https://www.npmjs.com/package/stream-transcoder-2)
 -
 **FFmpeg based media transcoder that supports streams.**
 
-##Introduction
-Flexible media transcoding using FFmpeg. Stream media in and out - converting it on the fly.
+**Forked from the original repo since it's not maintained.**
 
-I created this, because the current FFmpeg transcoders for node.js did not properly support streams as I needed.
+## Installing
 
-Along with the [stream-body-parser.js](https://github.com/trenskow/stream-body-parser.js), this makes a great companion for doing stuff like this.
+`yarn add stream-transcoder-2`
+
+`npm i stream-transcoder-2`
+
+TypeScript types are included in the package.
+
+FFmpeg is not installed with this package. Make sure you install it locally or use a package that provides it (e.g. [`ffmpeg-static`](https://www.npmjs.com/package/ffmpeg-static)).
+
+## Usage
+
+### Transcoding a file upload stream
+
+Example using [stream-body-parser.js](https://github.com/trenskow/stream-body-parser.js)
+
 ```js
-    var express = require('express'),
-        StreamBodyParser = require('stream-body-parser'),
-        Transcoder = require('stream-transcoder');
-    
-    var app = express();
-    
-    var bodyParser = new StreamBodyParser(app);
-    
-    bodyParser.process('video/*', function(stream, req, next) {
-    	
-    	var myGridFSWriteStream = (Some MongoDB GridFS stream)
-    	
-    	new Transcoder(stream)
-    	    .maxSize(320, 240)
-    	    .videoCodec('h264')
-    	    .videoBitrate(800 * 1000)
-    	    .fps(25)
-    	    .audioCodec('libfaac')
-    	    .sampleRate(44100)
-    	    .channels(2)
-    	    .audioBitrate(128 * 1000)
-    	    .format('mp4')
-    	    .on('finish', function() {
-    	    	next();
-    	    })
-    	    .stream().pipe(myGridFSWriteStream);
-    	
-    });
-    
-    app.post('/', function(req, res) {
-    	res.send(200); // File uploaded
-    });
-    
-    app.listen(3000);
+const express = require('express')
+const StreamBodyParser = require('stream-body-parser')
+const Transcoder = require('stream-transcoder')
+
+const app = express()
+
+const bodyParser = new StreamBodyParser(app)
+
+bodyParser.process('video/*', function(stream, req, next) {
+  const myGridFSWriteStream = 'Some MongoDB GridFS stream'
+
+  new Transcoder(stream)
+    .maxSize(320, 240)
+    .videoCodec('h264')
+    .videoBitrate(800 * 1000)
+    .fps(25)
+    .audioCodec('libfaac')
+    .sampleRate(44100)
+    .channels(2)
+    .audioBitrate(128 * 1000)
+    .format('mp4')
+    .on('finish', function() {
+      next()
+    })
+    .stream()
+    .pipe(myGridFSWriteStream)
+})
+
+app.post('/', function(req, res) {
+  res.send(200) // File uploaded
+})
+
+app.listen(3000)
 ```
+
 In the above example the video is transcoded as it is being uploaded, and then piped directly into the database. So when the route is being called, the video is transcoded and stored.
 
-## Installing FFmpeg
-FFmpeg is not installed with this package. So before usage, install FFmpeg using your favorite package manager or download it at [ffmpeg.org](http://ffmpeg.org/).
+## Documentation
 
-### Configure FFmpeg binary path
+### Transcoder
 
-Set the `FFMPEG_BIN_PATH` env var. (`ffmpeg` by default)
-
-## Class: Transcoder
 `Transcoder` is an EventEmitter.
 
 This class transcodes from one media format to another. It supports both files and streams as input and/or output. Some formats are not suited for streaming, in which case the `Transcoder` will emit an `error`, but most formats are.
 
-### new Transcoder(stream)
+### new Transcoder(options)
 
-  * `stream` Object - A readable stream.
-  
-Prepares a new Transcoder with a stream as its input.
-
-### new Transcoder(file)
-
-  * `file` String - The path of the file to be transcoded.
-
-Prepares a new Transcoder with a file as its input.
+  * `options` Object - A readable stream.
+  * `options.source` Stream | string - Source to parse, either a readable stream or a file path.  
+  * `options.ffmpegPath` [string] - Optional path to ffmpeg executable. If this is null it will be set to `process.env.FFMPEG_PATH || 'ffmpeg''`
 
 ### Event: 'metadata'
 
@@ -78,56 +80,56 @@ Prepares a new Transcoder with a file as its input.
 Emitted when metadata is available for both input and output streams. If no output is specified (by using `transcoder.exec()`), only input streams will be described.
 
 This an example of a transcoding process metadata.
-```js
-    {
-        "input": {
-            "streams": [
-                {
-                    "type": "video",
-                    "codec": "h264",
-                    "bitrate": 10131000,
-                    "fps": 25,
-                    "size": {
-                        "width": 1280,
-                        "height": 720
-                    },
-                    "aspect": 1.7777777777777777,
-                    "colors": "yuv420p"
-                },
-                {
-                    "type": "audio",
-                    "codec": "aac",
-                    "samplerate": 44100,
-                    "channels": 2,
-                    "bitrate": 106000
-                }
-            ],
-            "duration": 250068,
-            "synched": true
+```json
+{
+  "input": {
+    "streams": [
+      {
+        "type": "video",
+        "codec": "h264",
+        "bitrate": 10131000,
+        "fps": 25,
+        "size": {
+          "width": 1280,
+          "height": 720
         },
-        "output": {
-            "streams": [
-                {
-                    "type": "video",
-                    "codec": "h264",
-                    "bitrate": 800000,
-                    "size": {
-                        "width": 320,
-                        "height": 180
-                    },
-                    "aspect": 1.7777777777777777,
-                    "colors": "yuv420p"
-                },
-                {
-                    "type": "audio",
-                    "codec": "aac",
-                    "samplerate": 44100,
-                    "channels": 2,
-                    "bitrate": 128000
-                }
-            ]
-        }
-    }
+        "aspect": 1.7777777777777777,
+        "colors": "yuv420p"
+      },
+      {
+        "type": "audio",
+        "codec": "aac",
+        "samplerate": 44100,
+        "channels": 2,
+        "bitrate": 106000
+      }
+    ],
+    "duration": 250068,
+    "synched": true
+  },
+  "output": {
+    "streams": [
+      {
+        "type": "video",
+        "codec": "h264",
+        "bitrate": 800000,
+        "size": {
+          "width": 320,
+          "height": 180
+        },
+        "aspect": 1.7777777777777777,
+        "colors": "yuv420p"
+      },
+      {
+        "type": "audio",
+        "codec": "aac",
+        "samplerate": 44100,
+        "channels": 2,
+        "bitrate": 128000
+      }
+    ]
+  }
+}
 ```
 ### Event: 'progress'
 
@@ -136,16 +138,16 @@ This an example of a transcoding process metadata.
 Emitted when progress has been made in the transcoding.
 
 This is an example of the `progress` object. Where `progress.progress` is a percentage of the total transcoding job.
-```js
-    {
-        "frame": 508,
-        "fps": 253,
-        "quality": 16,
-        "size": 1553408,
-        "time": 20041,
-        "bitrate": 608000,
-        "progress": 0.08014220132124063
-    }
+```json
+{
+  "frame": 508,
+  "fps": 253,
+  "quality": 16,
+  "size": 1553408,
+  "time": 20041,
+  "bitrate": 608000,
+  "progress": 0.08014220132124063
+}
 ```
 ### Event: 'finish'
 

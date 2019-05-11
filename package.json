@@ -1,22 +1,48 @@
 {
-	"name": "stream-transcoder",
-	"version": "0.0.5",
-	"author": "Kristian Trenskow <trenskow@me.com>",
-	"description": "FFmpeg based media transcoder that supports streams.",
-	"main": "index.js",
-	"keywords": [
-		"ffmpeg",
-		"stream",
-		"transcoding",
-		"media",
-		"video"
-	],
-	"license": "BSD 2-Clause license",
-	"engines": {
-		"node": ">=0.10.15"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/trenskow/stream-transcoder.js.git"
-	}
+  "name": "stream-transcoder-2",
+  "description": "FFmpeg based media transcoder that supports streams.",
+  "version": "1.0.0-beta.0",
+  "contributors": [
+    "Kristian Trenskow <trenskow@me.com>",
+    "BeeeQueue <adam.lj.haglund@gmail.com>"
+  ],
+  "devDependencies": {
+    "husky": "^2.2.0",
+    "lint-staged": "^8.1.6",
+    "prettier": "^1.17.0"
+  },
+  "engines": {
+    "node": ">=6.17.1"
+  },
+  "files": [
+    "package.json",
+    "README.md",
+    "index.d.ts",
+    "src/*"
+  ],
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "keywords": [
+    "ffmpeg",
+    "media",
+    "stream",
+    "transcoding",
+    "video"
+  ],
+  "license": "BSD 2-Clause license",
+  "lint-staged": {
+    "*.{js,ts,json,vue}": [
+      "yarn prettier --write",
+      "git add"
+    ]
+  },
+  "main": "src/index.js",
+  "repository": {
+    "type": "github",
+    "url": "https://github.com/BeeeQueue/stream-transcoder.js"
+  },
+  "types": "index.d.ts"
 }

@@ -33,7 +33,7 @@ const bodyParser = new StreamBodyParser(app)
 bodyParser.process('video/*', function(stream, req, next) {
   const myGridFSWriteStream = 'Some MongoDB GridFS stream'
 
-  new Transcoder(stream)
+  new Transcoder({ source: stream })
     .maxSize(320, 240)
     .videoCodec('h264')
     .videoBitrate(800 * 1000)
